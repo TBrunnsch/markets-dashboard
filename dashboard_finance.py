@@ -8,15 +8,15 @@ import requests
 import altair as alt
 import calendar
 
-st.set_page_config(page_title="Markets & Rates Dashboard", layout="wide")
-st.title("📊 Markets & Rates Dashboard")
+st.set_page_config(page_title="Märkte & Zinsen Dashboard", layout="wide")
+st.title("Märkte & Zinsen Dashboard")
 
 # -------------------------
 # Sidebar
 # -------------------------
 st.sidebar.header("Settings")
-years = st.sidebar.slider("Historical period (years)", min_value=1, max_value=5, value=2)
-refresh = st.sidebar.button("🔄 Refresh Data")
+years = st.sidebar.slider("Historische Periode (Jahre)", min_value=1, max_value=5, value=2)
+refresh = st.sidebar.button("🔄 Daten aktualisieren")
 
 end = pd.Timestamp.today()
 start = end - pd.DateOffset(years=years)
@@ -153,7 +153,7 @@ with st.spinner("📥 Loading interest rates..."):
 # -------------------------
 # Market Metrics
 # -------------------------
-st.subheader("Current Prices / Exchange Rates / Commodities")
+st.subheader("Börsenindizes / Wechselkurse / Rohstoffe")
 cols = st.columns(len(TICKERS))
 for i, (name, tk) in enumerate(TICKERS.items()):
     col = cols[i]
@@ -172,7 +172,7 @@ st.markdown("---")
 # -------------------------
 # Market Charts (daily)
 # -------------------------
-st.subheader("Market / Commodity / Bonds Charts")
+st.subheader("Börsen / Wechselkurse / Rohstoffe / Obligationen Charts")
 all_daily = list(TICKERS.keys()) + ["10Y Bundesobli"]
 for i in range(0, len(all_daily), 2):
     cols = st.columns(2)
@@ -202,7 +202,7 @@ st.markdown("---")
 # -------------------------
 # Interest Rates Charts (monthly)
 # -------------------------
-st.subheader("📈 Central Bank Interest Rates (Monthly)")
+st.subheader("Leitzinsen (Monatsdaten)")
 rates = [("USA Fed", fed_df, "%"), 
          ("EZB Leitzins", ecb_df, "%"), 
          ("SNB Leitzins", snb_df, "%")]
@@ -220,3 +220,4 @@ for i, (label, df, unit) in enumerate(rates):
 
 st.markdown("---")
 st.caption("📌 Märkte & 10Y Oblis täglich, Leitzinsen monatlich: Fed (USA), EZB (Europa), SNB (Schweiz)")
+
