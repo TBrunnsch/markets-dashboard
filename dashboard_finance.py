@@ -15,7 +15,7 @@ st.title("Märkte & Zinsen Dashboard")
 # Sidebar
 # -------------------------
 st.sidebar.header("Settings")
-years = st.sidebar.slider("Historische Periode (Jahre)", min_value=1, max_value=5, value=2)
+years = st.sidebar.slider("Zeitraum (Jahre)", min_value=1, max_value=5, value=2)
 refresh = st.sidebar.button("🔄 Daten aktualisieren")
 
 end = pd.Timestamp.today()
@@ -220,4 +220,5 @@ for i, (label, df, unit) in enumerate(rates):
 
 st.markdown("---")
 st.caption("📌 Märkte & 10Y Oblis täglich, Leitzinsen monatlich: Fed (USA), EZB (Europa), SNB (Schweiz)")
+
 
