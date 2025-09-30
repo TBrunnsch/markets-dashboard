@@ -127,7 +127,14 @@ def create_chart(df, value_col, title, unit, daily=False):
         df['x_label'] = df['month_name'] + "\n" + df['year'].astype(str)
         x = alt.X('x_label:N', title='Month / Year', sort=None)
     else:
-        x = alt.X('date:T', title='Date', axis=alt.Axis(format='%b %y'))
+        x = alt.X(
+            'date:T',
+            title='Month/Year',
+            axis=alt.Axis(
+                format='%b %Y',    # Apr 2021
+                labelAngle=90      # rotate labels 90 degrees
+            )
+        )
     chart = alt.Chart(df).mark_line().encode(
         x=x,
         y=alt.Y(f'{value_col}:Q', title=unit),
@@ -220,6 +227,7 @@ for i, (label, df, unit) in enumerate(rates):
 
 st.markdown("---")
 st.caption("📌 Märkte & 10Y Oblis täglich, Leitzinsen monatlich: Fed (USA), EZB (Europa), SNB (Schweiz)")
+
 
 
 
