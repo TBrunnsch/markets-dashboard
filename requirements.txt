@@ -1,7 +1,7 @@
 streamlit
 yfinance
-pandas
-pandas_datareader
+pandas == 1.5.3
+pandas_datareader == 0.10.0
 requests
 altair
 
