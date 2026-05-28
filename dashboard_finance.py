@@ -43,20 +43,14 @@ def fetch_yfinance(tickers, start, end, interval="1d"):
     data = {}
     for name, tk in tickers.items():
         try:
+            # Added multi_level_index=False to return traditional flat columns
             hist = yf.download(tk, start=start, end=end + pd.Timedelta(days=1),
-                               interval=interval, progress=False)
-            
-            if not hist.empty:
-                # 👇 FIX: If yfinance returned MultiIndex columns, flatten them!
-                if isinstance(hist.columns, pd.MultiIndex):
-                    hist.columns = hist.columns.get_level_values(0)
-                
-                data[name] = hist
-            else:
-                data[name] = None
+                               interval=interval, progress=False, multi_level_index=False)
+            data[name] = hist if not hist.empty else None
         except Exception:
             data[name] = None
     return data
+
 
 @st.cache_data(ttl=3600)
 def fetch_fed_rate(start, end):
