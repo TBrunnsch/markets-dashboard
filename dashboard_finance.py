@@ -1,4 +1,4 @@
-# dashboard_finance_full_daily_bonds.py
+# dashboard_finance.py
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -37,15 +37,14 @@ TICKERS = {
 # -------------------------
 # Fetch functions
 # -------------------------
-
 @st.cache_data(ttl=300)
 def fetch_yfinance(tickers, start, end, interval="1d"):
     data = {}
     for name, tk in tickers.items():
         try:
-            # Added multi_level_index=False to return traditional flat columns
+            # We fetch data normally without assuming fixed multi-index parameters
             hist = yf.download(tk, start=start, end=end + pd.Timedelta(days=1),
-                               interval=interval, progress=False, multi_level_index=False)
+                               interval=interval, progress=False)
             data[name] = hist if not hist.empty else None
         except Exception:
             data[name] = None
@@ -54,14 +53,14 @@ def fetch_yfinance(tickers, start, end, interval="1d"):
 @st.cache_data(ttl=3600)
 def fetch_fed_rate(start, end):
     df = DataReader("FEDFUNDS", "fred", start, end)
-    df = df.resample('M').last().fillna(method='ffill')
+    df = df.resample('ME').last().ffill()  # Fixed deprecation warnings
     df = df.reset_index().rename(columns={"DATE": "date", "FEDFUNDS": "rate"})
     return df
 
 @st.cache_data(ttl=3600)
 def fetch_ecb_rate(start, end):
     df = DataReader("ECBDFR", "fred", start, end)
-    df = df.resample('M').last().fillna(method='ffill')
+    df = df.resample('ME').last().ffill()  # Fixed deprecation warnings
     df = df.reset_index().rename(columns={"DATE": "date", "ECBDFR": "rate"})
     return df
 
@@ -83,7 +82,7 @@ def fetch_snb_policy_rate(start):
                 df['date'] = pd.to_datetime(df['date'], errors='coerce')
                 df['value'] = pd.to_numeric(df['value'], errors='coerce')
                 df = df.dropna(subset=['date', 'value'])
-                df = df[df['date'] >= start]  # Filter basierend auf dem Slider
+                df = df[df['date'] >= start]  # Filter based on slider
                 return df.sort_values('date')
         return None
     except requests.RequestException as e:
@@ -110,7 +109,7 @@ def fetch_swiss_10y_bond_daily(start):
                     df['date'] = pd.to_datetime(df['date'], errors='coerce')
                     df['value'] = pd.to_numeric(df['value'], errors='coerce')
                     df = df.dropna(subset=['date','value'])
-                    df = df[df['date'] >= start]  # Filter basierend auf dem Slider
+                    df = df[df['date'] >= start]  # Filter based on slider
                     return df.sort_values('date')
         return None
     except requests.RequestException as e:
@@ -167,11 +166,19 @@ cols = st.columns(len(TICKERS))
 for i, (name, tk) in enumerate(TICKERS.items()):
     col = cols[i]
     hist = yf_data.get(name)
-    if hist is None:
+    if hist is None or hist.empty:
         col.metric(label=name, value="N/A")
     else:
-        last_close = float(hist["Close"].iloc[-1])
-        prev = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else last_close
+        # Handle MultiIndex or standard flat index safely for the metrics block
+        if isinstance(hist.columns, pd.MultiIndex):
+            close_series = hist.xs('Close', axis=1, level=0)
+        else:
+            # Case-insensitive column resolution
+            close_col = next((c for c in hist.columns if str(c).lower() == 'close'), hist.columns[0])
+            close_series = hist[close_col]
+            
+        last_close = float(close_series.iloc[-1])
+        prev = float(close_series.iloc[-2]) if len(close_series) >= 2 else last_close
         change = last_close - prev
         pct = (change / prev) * 100 if prev != 0 else 0
         col.metric(label=name, value=f"{last_close:,.2f}", delta=f"{pct:.2f}%")
@@ -196,7 +203,22 @@ for i in range(0, len(all_daily), 2):
                 if hist is None or hist.empty:
                     st.warning(f"No data for {name}")
                 else:
-                    df = hist.reset_index()[["Date", "Close"]].rename(columns={"Date": "date", "Close": "value"}) if name != "10Y Bundesobli" else hist
+                    if name != "10Y Bundesobli":
+                        # Flatten multi-level headers right away if present
+                        df_processed = hist.copy()
+                        if isinstance(df_processed.columns, pd.MultiIndex):
+                            df_processed.columns = df_processed.columns.get_level_values(0)
+                        
+                        df = df_processed.reset_index()
+                        
+                        # Defensively locate whichever date & close columns exist regardless of casing/naming
+                        date_col = next((c for c in df.columns if str(c).lower() in ['date', 'index']), df.columns[0])
+                        close_col = next((c for c in df.columns if str(c).lower() in ['close', 'adj close']), df.columns[1])
+                        
+                        df = df[[date_col, close_col]].rename(columns={date_col: "date", close_col: "value"})
+                    else:
+                        df = hist
+                        
                     df['date'] = pd.to_datetime(df['date'])
                     unit = (
                         "Indexpunkte" if name in ["SMI","Dow Jones","DAX"] else
@@ -229,10 +251,3 @@ for i, (label, df, unit) in enumerate(rates):
 
 st.markdown("---")
 st.caption("📌 Märkte & 10Y Oblis täglich, Leitzinsen monatlich: Fed (USA), EZB (Europa), SNB (Schweiz)")
-
-
-
-
-
-
-
