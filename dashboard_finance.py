@@ -51,7 +51,6 @@ def fetch_yfinance(tickers, start, end, interval="1d"):
             data[name] = None
     return data
 
-
 @st.cache_data(ttl=3600)
 def fetch_fed_rate(start, end):
     df = DataReader("FEDFUNDS", "fred", start, end)
