@@ -37,6 +37,7 @@ TICKERS = {
 # -------------------------
 # Fetch functions
 # -------------------------
+
 @st.cache_data(ttl=300)
 def fetch_yfinance(tickers, start, end, interval="1d"):
     data = {}
@@ -44,7 +45,15 @@ def fetch_yfinance(tickers, start, end, interval="1d"):
         try:
             hist = yf.download(tk, start=start, end=end + pd.Timedelta(days=1),
                                interval=interval, progress=False)
-            data[name] = hist if not hist.empty else None
+            
+            if not hist.empty:
+                # 👇 FIX: If yfinance returned MultiIndex columns, flatten them!
+                if isinstance(hist.columns, pd.MultiIndex):
+                    hist.columns = hist.columns.get_level_values(0)
+                
+                data[name] = hist
+            else:
+                data[name] = None
         except Exception:
             data[name] = None
     return data
