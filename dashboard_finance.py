@@ -52,17 +52,27 @@ def fetch_yfinance(tickers, start, end, interval="1d"):
 
 @st.cache_data(ttl=3600)
 def fetch_fed_rate(start, end):
-    df = DataReader("FEDFUNDS", "fred", start, end)
-    df = df.resample('ME').last().ffill()  # Fixed deprecation warnings
-    df = df.reset_index().rename(columns={"DATE": "date", "FEDFUNDS": "rate"})
-    return df
+    try:
+        # HIER: timeout=30 hinzugefügt, um Hänger abzufangen
+        df = DataReader("FEDFUNDS", "fred", start, end, timeout=30)
+        df = df.resample('ME').last().ffill()  # Fixed deprecation warnings
+        df = df.reset_index().rename(columns={"DATE": "date", "FEDFUNDS": "rate"})
+        return df
+    except Exception as e:
+        st.error(f"Fehler beim Abrufen der FED Rate von FRED: {e}")
+        return pd.DataFrame(columns=["date", "rate"])
 
 @st.cache_data(ttl=3600)
 def fetch_ecb_rate(start, end):
-    df = DataReader("ECBDFR", "fred", start, end)
-    df = df.resample('ME').last().ffill()  # Fixed deprecation warnings
-    df = df.reset_index().rename(columns={"DATE": "date", "ECBDFR": "rate"})
-    return df
+    try:
+        # HIER: timeout=30 hinzugefügt, um den gemeldeten Fehler zu beheben
+        df = DataReader("ECBDFR", "fred", start, end, timeout=30)
+        df = df.resample('ME').last().ffill()  # Fixed deprecation warnings
+        df = df.reset_index().rename(columns={"DATE": "date", "ECBDFR": "rate"})
+        return df
+    except Exception as e:
+        st.error(f"Fehler beim Abrufen der EZB Rate von FRED: {e}")
+        return pd.DataFrame(columns=["date", "rate"])
 
 @st.cache_data(ttl=3600)
 def fetch_snb_policy_rate(start):
@@ -121,6 +131,9 @@ def fetch_swiss_10y_bond_daily(start):
 # -------------------------
 def create_chart(df, value_col, title, unit, daily=False):
     df = df.copy()
+    if df.empty:
+        return alt.Chart(pd.DataFrame()).mark_text().properties(title=title)
+        
     if not daily:
         df['month'] = df['date'].dt.month
         df['year'] = df['date'].dt.year
@@ -242,11 +255,11 @@ cols = st.columns(3)
 for i, (label, df, unit) in enumerate(rates):
     with cols[i]:
         if df is None or df.empty:
-            st.error(f"No data for {label}")
+            st.error(f"Keine Daten verfügbar für {label}")
         else:
-            last_val = df['rate'].iloc[-1] if 'rate' in df.columns else df['value'].iloc[-1]
-            st.metric(label, f"{last_val:.2f} {unit}")
             val_col = 'rate' if 'rate' in df.columns else 'value'
+            last_val = df[val_col].iloc[-1]
+            st.metric(label, f"{last_val:.2f} {unit}")
             st.altair_chart(create_chart(df, val_col, label, unit, daily=False), use_container_width=True)
 
 st.markdown("---")
